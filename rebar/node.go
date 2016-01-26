@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/VictorLowther/crowbar-api/client"
+	"github.com/digitalrebar/rebar-api/client"
 	"github.com/spf13/cobra"
 )
 
@@ -186,6 +186,23 @@ func init() {
 				log.Fatalf("Failed to parse ID %v for an %v\n", args[0], singularName)
 			}
 			fmt.Println(obj.ActiveBootstate())
+		},
+	})
+	nodes.AddCommand(&cobra.Command{
+		Use:   "redeploy [id]",
+		Short: "Force a node to redeploy itself from scratch",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				log.Fatalf("%v requires one argument\n", c.UseLine())
+			}
+			obj := &client.Node{}
+			if client.SetId(obj, args[0]) != nil {
+				log.Fatalf("Failed to parse ID %v for a Node\n", args[0])
+			}
+			if err := obj.Redeploy(); err != nil {
+				log.Fatalf("Failed to redeploy %v\n%v\n", args[0], err)
+			}
+			fmt.Println(prettyJSON(obj))
 		},
 	})
 	app.AddCommand(nodes)
