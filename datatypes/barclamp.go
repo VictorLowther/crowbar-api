@@ -6,7 +6,7 @@ import (
 	"github.com/guregu/null"
 )
 
-// Barclamp tracks the Barclamps that Crowbar can work with.
+// Barclamp tracks the Barclamps that Rebar can work with.
 type Barclamp struct {
 	NameID
 	Description string      `json:"description"`
@@ -71,7 +71,7 @@ type roleImport struct {
 	Description  string         `json:"description",yaml:"description"`
 	Requires     []string       `json:"requires",yaml:"requires"`
 	Conflicts    []string       `json:"conflicts",yaml:"conflicts"`
-	Provides     []string       `json:"conflicts",yaml:"conflicts"`
+	Provides     []string       `json:"provides",yaml:"provides"`
 	Flags        []string       `json:"flags",yaml:"flags"`
 	Attribs      []attribImport `json:"attribs",yaml:"attribs"`
 	WantsAttribs string         `json:"wants_attribs",yaml:"wants_attribs"`
@@ -98,9 +98,9 @@ type barclampImport struct {
 
 type BarclampImport struct {
 	Barclamp barclampImport `json:"barclamp",yaml:"barclamp"`
-	Crowbar  struct {
+	Rebar  struct {
 		Layout float64 `json:"layout",yaml:"layout"`
-	} `json:"crowbar",yaml:"crowbar"`
+	} `json:"rebar",yaml:"rebar"`
 	Jigs       []jigImport    `json:"jigs",yaml:"jigs"`
 	Roles      []roleImport   `json:"roles",yaml:"roles"`
 	Attribs    []attribImport `json:"attribs",yaml:"attribs"`
