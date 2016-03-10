@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 )
 
 // Node wraps datatypes.Node to provide the client API.
@@ -28,20 +28,13 @@ func (o *Node) PowerActions() ([]string, error) {
 // Move moves a Node from its current deployment to a new one.  It is
 // guaranteed to be atomic.
 func (o *Node) Move(depl *Deployment) error {
-	old_deployment_id := o.DeploymentID
-	tgt := fmt.Sprintf("%v?old_deployment_id=%v", urlFor(o), o.DeploymentID)
 	o.DeploymentID = depl.ID
-	inbuf, err := json.Marshal(o)
-	_, err = session.request("PUT", tgt, inbuf)
-	if err != nil {
-		o.DeploymentID = old_deployment_id
-	}
-	return err
+	return Update(o)
 }
 
 // Power performs a power management action for the node.
 func (o *Node) Power(action string) error {
-	_, err := session.request("PUT", fmt.Sprintf("power?poweraction=%v", action), nil)
+	_, err := session.request("PUT", fmt.Sprintf("%v?poweraction=%v", urlFor(o, "power"), action), nil)
 	return err
 }
 
@@ -62,6 +55,17 @@ func (o *Node) ActiveBootstate() string {
 	}
 }
 
+// Redeploy has a node redeploy itself from scratch.  This includes wiping out the
+// filesystems, reconfiguring hardware, and reinstalling the OS and all roles.
+func (o *Node) Redeploy() error {
+	uri := urlFor(o, "redeploy")
+	buf, err := session.request("PUT", uri, nil)
+	if err != nil {
+		return err
+	}
+	return unmarshal(uri, buf, o)
+}
+
 // Satisfy salient interfaces
 func (o *Node) attribs()            {}
 func (o *Node) deploymentRoles()    {}
@@ -71,6 +75,7 @@ func (o *Node) roles()              {}
 func (o *Node) networks()           {}
 func (o *Node) networkRanges()      {}
 func (o *Node) networkAllocations() {}
+func (o *Node) providers()          {}
 
 // Deployment returns the Deployment the node is in.
 func (o *Node) Deployment() (res *Deployment, err error) {

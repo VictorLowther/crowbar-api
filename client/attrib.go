@@ -5,7 +5,7 @@ import (
 	"log"
 	"path"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 )
 
 // Attrib wraps datatypes.Attrib with the needed functionality for the
@@ -68,6 +68,14 @@ func GetAttrib(o Attriber, a *Attrib, bucket string) (res *Attrib, err error) {
 	return res, unmarshal(uri, outbuf, res)
 }
 
+// FetchAttrib behaves the same as GetAttrib, but accepts the name of an
+// attrib instead of an attrib.
+func FetchAttrib(o Attriber, attr, bucket string) (res *Attrib, err error) {
+	res = &Attrib{}
+	res.SetId(attr)
+	return GetAttrib(o, res, bucket)
+}
+
 // SetAttrib sets the value of an attrib in the context of
 // an attriber in the passed bucket.  Valid buckets are:
 //
@@ -100,7 +108,7 @@ func Propose(o Attriber) error {
 }
 
 // Commit makes the values set on the Attriber via SetAttrib visible
-// to the rest of the Crowbar infrastructure.
+// to the rest of the Rebar infrastructure.
 func Commit(o Attriber) error {
 	outbuf, err := session.request("PUT", urlFor(o, "commit"), nil)
 	if err != nil {
