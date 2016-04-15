@@ -1,7 +1,9 @@
-This is the start of a sane-ish Crowbar API in Go.
+This is the start of a sane-ish Rebar API in Go.
 
-* crowbar/ contains a CLI for OpenCrowbar.
+* rebar/ contains a CLI for DigitalRebar.
 * client/ contains the API client that the CLI uses.
-* datatypes/ contains the core datatypes that Crowbar uses to represent everything.
+* datatypes/ contains the core datatypes that Rebar uses to represent everything.
 
-To build the CLI, just run ```go build``` in the crowbar directory.
+To build the CLI, just run ```go build``` in the rebar directory.
+
+Documents are at https://godoc.org/github.com/digitalrebar/rebar-api/client and https://godoc.org/github.com/digitalrebar/rebar-api/datatypes

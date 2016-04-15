@@ -8,19 +8,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictorLowther/crowbar-api/client"
-	"github.com/VictorLowther/crowbar-api/datatypes"
 	"github.com/VictorLowther/jsonpatch"
+	"github.com/digitalrebar/rebar-api/client"
+	"github.com/digitalrebar/rebar-api/datatypes"
 	"github.com/spf13/cobra"
 )
 
 var (
+	version            = "1.2.0"
 	debug              = false
-	endpoint           = "http://127.0.0.1:3000"
+	endpoint           = "https://127.0.0.1:3000"
 	username, password string
 	app                = &cobra.Command{
-		Use:   "crowbar",
-		Short: "A CLI application for interacting with the Crowbar API",
+		Use:   "rebar",
+		Short: "A CLI application for interacting with the Rebar API",
 	}
 )
 
@@ -39,29 +40,29 @@ func prettyJSON(o interface{}) (res string) {
 }
 
 func init() {
-	if ep := os.Getenv("CROWBAR_ENDPOINT"); ep != "" {
+	if ep := os.Getenv("REBAR_ENDPOINT"); ep != "" {
 		endpoint = ep
 	}
-	if kv := os.Getenv("CROWBAR_KEY"); kv != "" {
+	if kv := os.Getenv("REBAR_KEY"); kv != "" {
 		key := strings.SplitN(kv, ":", 2)
 		if len(key) < 2 {
-			log.Fatal("CROWBAR_KEY does not contain a username:password pair!")
+			log.Fatal("REBAR_KEY does not contain a username:password pair!")
 		}
 		if key[0] == "" || key[1] == "" {
-			log.Fatal("CROWBAR_KEY contains an invalid username:password pair!")
+			log.Fatal("REBAR_KEY contains an invalid username:password pair!")
 		}
 		username = key[0]
 		password = key[1]
 	}
 	app.PersistentFlags().StringVarP(&endpoint,
 		"endpoint", "E", endpoint,
-		"The Crowbar API endpoint to talk to")
+		"The Rebar API endpoint to talk to")
 	app.PersistentFlags().StringVarP(&username,
 		"username", "U", username,
-		"Name of the Crowbar user to talk to")
+		"Name of the Rebar user to talk to")
 	app.PersistentFlags().StringVarP(&password,
 		"password", "P", password,
-		"Password of the Crowbar user")
+		"Password of the Rebar user")
 	app.PersistentFlags().BoolVarP(&debug,
 		"debug", "d", false,
 		"Whether the CLI should run in debug mode")
@@ -82,7 +83,7 @@ func makeCommandTree(singularName string,
 		Run: func(c *cobra.Command, args []string) {
 			objs := []interface{}{}
 			if err := client.List(maker().ApiName(), &objs); err != nil {
-				log.Fatalf("Error listing %v: %v", name, err.Error())
+				log.Fatalf("Error listing %v: %v", name, err)
 			}
 			fmt.Println(prettyJSON(objs))
 		},
@@ -100,7 +101,7 @@ func makeCommandTree(singularName string,
 				log.Fatalf("Matches not valid JSON\n%v", err)
 			}
 			if err := client.Match(maker().ApiName(), vals, &objs); err != nil {
-				log.Fatalf("Error getting matches for %v\nError:%v\n", singularName, err.Error())
+				log.Fatalf("Error getting matches for %v\nError:%v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(objs))
 		},
@@ -113,8 +114,8 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v requires 1 argument\n", c.UseLine())
 			}
 			obj := maker()
-			if client.Fetch(obj, args[0]) != nil {
-				log.Fatalf("Failed to fetch %v\n", singularName, args[0])
+			if err := client.Fetch(obj, args[0]); err != nil {
+				log.Fatalf("Failed to fetch %v: %v\n%v\n", singularName, args[0], err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -128,7 +129,7 @@ func makeCommandTree(singularName string,
 			}
 			obj := maker()
 			if err := client.Init(obj); err != nil {
-				log.Fatalf("Unable to fetch defaults for %v: %v\n", singularName, err.Error())
+				log.Fatalf("Unable to fetch defaults for %v: %v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -142,7 +143,7 @@ func makeCommandTree(singularName string,
 			}
 			obj := maker()
 			if err := client.Import(obj, []byte(args[0])); err != nil {
-				log.Fatalf("Unable to create new %v: %v\n", singularName, err.Error())
+				log.Fatalf("Unable to create new %v: %v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -206,7 +207,7 @@ func makeCommandTree(singularName string,
 				log.Fatalf("Failed to parse ID %v for an %v\n", args[0], singularName)
 			}
 			if err := client.Destroy(obj); err != nil {
-				log.Fatalf("Unable to destroy %v %v\nError: %v\n", singularName, args[0], err.Error())
+				log.Fatalf("Unable to destroy %v %v\nError: %v\n", singularName, args[0], err)
 			}
 			fmt.Printf("Deleted %v %v\n", singularName, args[0])
 		},
@@ -229,24 +230,42 @@ func makeCommandTree(singularName string,
 
 func main() {
 	app.PersistentPreRun = func(c *cobra.Command, a []string) {
-		d("Talking to Crowbar with %v (%v:%v)", endpoint, username, password)
+		d("Talking to Rebar with %v (%v:%v)", endpoint, username, password)
 		if err := client.Session(endpoint, username, password); err != nil {
-			log.Fatalf("Could not connect to Crowbar: %v\n", err.Error())
+			if c.Use != "version" {
+				log.Fatalf("Could not connect to Rebar: %v\n", err.Error())
+			}
 		}
+	}
+	vers := &cobra.Command{
+		Use:   "version",
+		Short: "Rebar CLI Command Version",
+		Run: func(cmd *cobra.Command, args []string) {
+			log.Printf("Version: %v", version)
+		},
 	}
 
 	ping := &cobra.Command{
 		Use:   "ping",
-		Short: "Test to see if we can connect to the Crowbar API endpoint",
+		Short: "Test to see if we can connect to the Rebar API endpoint",
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Printf("Able to connect to Crowbar at %v (user: %v)", endpoint, username)
+			log.Printf("Able to connect to Rebar at %v (user: %v)", endpoint, username)
 		},
 	}
 
 	converge := &cobra.Command{
-		Use:   "converge",
-		Short: "Wait for all the noderoles to become active, and fail if any error out",
+		Use:   "converge [deployment]",
+		Short: "Wait for all the noderoles to become active (optionally by deployment), and fail if any error out",
 		Run: func(c *cobra.Command, args []string) {
+			var deploymentID int64 = 0
+			if len(args) == 1 {
+				obj := &client.Deployment{}
+				if client.Fetch(obj, args[0]) != nil {
+					log.Fatalf("Failed to fetch %v\n", args[0])
+				}
+				deploymentID = obj.ID
+			}
+
 			for {
 				nodeRoles, err := client.NodeRoles()
 				if err != nil {
@@ -254,8 +273,11 @@ func main() {
 				}
 				allActive := true
 				for _, nodeRole := range nodeRoles {
+					if nodeRole.DeploymentID != deploymentID {
+						continue
+					}
 					if nodeRole.State == datatypes.NodeRoleError {
-						log.Fatalln("Crowbar could not converge")
+						log.Fatalln("Rebar could not converge")
 					}
 					if nodeRole.State != datatypes.NodeRoleActive {
 						allActive = false
@@ -270,6 +292,7 @@ func main() {
 	}
 	app.AddCommand(converge)
 	app.AddCommand(ping)
+	app.AddCommand(vers)
 
 	app.Execute()
 }
