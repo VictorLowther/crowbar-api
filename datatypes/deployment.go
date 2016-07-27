@@ -2,7 +2,7 @@ package datatypes
 
 import "github.com/guregu/null"
 
-// Deployments are the main tool that Crowbar provides to group
+// Deployments are the main tool that Rebar provides to group
 // related nodes together.  They carry Deployment-specific
 // configuration information (in the form of DeploymentRoles), Nodes
 // (a node belongs to exactly one Deployment at any given point in
@@ -29,6 +29,8 @@ type Deployment struct {
 	System bool `json:"system"`
 	// The ID of the deployment that is the parent of this one.
 	ParentID null.Int `json:"parent_id"`
+	// The ID of the owning tenant
+	TenantID int64 `json:"tenant_id,omitempty"`
 }
 
 func (o *Deployment) ApiName() string {

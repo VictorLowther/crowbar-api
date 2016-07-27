@@ -1,6 +1,8 @@
 package client
 
-import "github.com/VictorLowther/crowbar-api/datatypes"
+// Deprecated: use api instead. client will not be updated
+
+import "github.com/digitalrebar/rebar-api/datatypes"
 
 // AvailableHammer helps track what Hammers are available to be bound to a Node.
 type AvailableHammer struct {

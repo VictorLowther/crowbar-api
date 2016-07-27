@@ -1,6 +1,5 @@
 package datatypes
 
-import "strconv"
 import "github.com/guregu/null"
 
 // Network holds configuration for a specific network.
@@ -26,7 +25,7 @@ type Network struct {
 	Description string `json:"description"`
 	// The IPv6 prefix this network should use to hand out IPv6 addresses.
 	// If empty, no IPv6 addresses will be allocated.  If the address is not in CIDR
-	// form, Crowbar will assume it is a /64 subnet.
+	// form, Rebar will assume it is a /64 subnet.
 	V6Prefix null.String `json:"v6prefix"`
 	// The conduit that this Network should run over.  A Conduit
 	// defnintion is a comma-seperated list of abstract interface
@@ -57,6 +56,7 @@ type Network struct {
 	Category         string      `json:"category"`
 	Group            string      `json:"group"`
 	PolicyBasedRoute null.String `json:"pbr"`
+	TenantID         int64       `json:"tenant_id,omitempty"`
 }
 
 func (o *Network) ApiName() string {
@@ -83,8 +83,9 @@ type NetworkRange struct {
 	First string `json:"first"`
 	// The last address that can be callocated from this NetworkRange.
 	// It must be of the same type and in the same subnet as the First address.
-	Last string `json:"last"`
-	Name string `json:"name"`
+	Last     string `json:"last"`
+	Name     string `json:"name"`
+	TenantID int64  `json:"tenant_id,omitempty"`
 }
 
 func (o *NetworkRange) ApiName() string {
@@ -94,31 +95,30 @@ func (o *NetworkRange) ApiName() string {
 // AddressID is used for NetworkAllocation and NetworkRouter, as they
 // can be uniquely identified by either their ID or Address fields.
 type AddressID struct {
-	ID int64 `json:"id"`
+	SimpleID
 	// Address is an IPv4 or v6 address in CIDR format.
 	Address string `json:"address"`
 }
 
+// Id returns this attrib's ID or Name as a string.
+// The REST API allows them to be used interchangeably.
 func (o *AddressID) Id() (string, error) {
-	if o.ID != 0 {
-		return strconv.FormatInt(o.ID, 10), nil
-	} else if o.Address != "" {
+	if o.Address != "" {
 		return o.Address, nil
-	} else {
-		return "", IDNotSet
 	}
-
+	return o.SimpleID.Id()
 }
 
+// SetId sets either the ID or the Name field, depending on whether
+// the passed-in string can be parsed as an int64 or not.
 func (o *AddressID) SetId(s string) error {
-	if o.ID != 0 || o.Address != "" {
-		return SetIDErr
+	err := o.SimpleID.SetId(s)
+	if err == nil {
+		return nil
+	} else if err == SetIDErr {
+		return err
 	}
-	if id, err := strconv.ParseInt(s, 10, 64); err == nil {
-		o.ID = id
-	} else {
-		o.Address = s
-	}
+	o.Address = s
 	return nil
 }
 
@@ -128,6 +128,7 @@ type NetworkAllocation struct {
 	NodeID         null.Int `json:"node_id"`
 	NetworkID      null.Int `json:"network_id"`
 	NetworkRangeID null.Int `json:"network_range_id"`
+	TenantID       int64    `json:"tenant_id,omitempty"`
 }
 
 func (o *NetworkAllocation) ApiName() string {
@@ -139,6 +140,7 @@ func (o *NetworkAllocation) ApiName() string {
 type NetworkRouter struct {
 	AddressID
 	NetworkID int64 `json:"network_id"`
+	TenantID  int64 `json:"tenant_id,omitempty"`
 	Pref      int64 `json:"pref"`
 }
 
