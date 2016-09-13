@@ -8,20 +8,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictorLowther/crowbar-api/client"
-	"github.com/VictorLowther/crowbar-api/datatypes"
 	"github.com/VictorLowther/jsonpatch"
+	rbversion "github.com/digitalrebar/go-common/version"
+	"github.com/digitalrebar/rebar-api/api"
+	"github.com/digitalrebar/rebar-api/datatypes"
 	"github.com/spf13/cobra"
 )
 
 var (
+	version            = rbversion.REBAR_VERSION
+	trusted            = false
 	debug              = false
-	endpoint           = "http://127.0.0.1:3000"
+	endpoint           = "https://127.0.0.1:3000"
 	username, password string
 	app                = &cobra.Command{
-		Use:   "crowbar",
-		Short: "A CLI application for interacting with the Crowbar API",
+		Use:   "rebar",
+		Short: "A CLI application for interacting with the Rebar API",
 	}
+	session *api.Client
 )
 
 func d(msg string, args ...interface{}) {
@@ -39,36 +43,39 @@ func prettyJSON(o interface{}) (res string) {
 }
 
 func init() {
-	if ep := os.Getenv("CROWBAR_ENDPOINT"); ep != "" {
+	if ep := os.Getenv("REBAR_ENDPOINT"); ep != "" {
 		endpoint = ep
 	}
-	if kv := os.Getenv("CROWBAR_KEY"); kv != "" {
+	if kv := os.Getenv("REBAR_KEY"); kv != "" {
 		key := strings.SplitN(kv, ":", 2)
 		if len(key) < 2 {
-			log.Fatal("CROWBAR_KEY does not contain a username:password pair!")
+			log.Fatal("REBAR_KEY does not contain a username:password pair!")
 		}
 		if key[0] == "" || key[1] == "" {
-			log.Fatal("CROWBAR_KEY contains an invalid username:password pair!")
+			log.Fatal("REBAR_KEY contains an invalid username:password pair!")
 		}
 		username = key[0]
 		password = key[1]
 	}
+	app.PersistentFlags().BoolVarP(&trusted,
+		"trusted", "T", trusted,
+		"Whether the CLI should operate as a trusted client.  Only works inside the service trust zone")
 	app.PersistentFlags().StringVarP(&endpoint,
 		"endpoint", "E", endpoint,
-		"The Crowbar API endpoint to talk to")
+		"The Rebar API endpoint to talk to")
 	app.PersistentFlags().StringVarP(&username,
 		"username", "U", username,
-		"Name of the Crowbar user to talk to")
+		"Name of the Rebar user to talk to")
 	app.PersistentFlags().StringVarP(&password,
 		"password", "P", password,
-		"Password of the Crowbar user")
+		"Password of the Rebar user")
 	app.PersistentFlags().BoolVarP(&debug,
 		"debug", "d", false,
 		"Whether the CLI should run in debug mode")
 }
 
 func makeCommandTree(singularName string,
-	maker func() client.Crudder) (res *cobra.Command) {
+	maker func() api.Crudder) (res *cobra.Command) {
 	name := singularName + "s"
 	d("Making command tree for %v\n", name)
 	res = &cobra.Command{
@@ -81,8 +88,8 @@ func makeCommandTree(singularName string,
 		Short: fmt.Sprintf("List all %v", name),
 		Run: func(c *cobra.Command, args []string) {
 			objs := []interface{}{}
-			if err := client.List(maker().ApiName(), &objs); err != nil {
-				log.Fatalf("Error listing %v: %v", name, err.Error())
+			if err := session.List(maker().ApiName(), &objs); err != nil {
+				log.Fatalf("Error listing %v: %v", name, err)
 			}
 			fmt.Println(prettyJSON(objs))
 		},
@@ -99,8 +106,8 @@ func makeCommandTree(singularName string,
 			if err := json.Unmarshal([]byte(args[0]), &vals); err != nil {
 				log.Fatalf("Matches not valid JSON\n%v", err)
 			}
-			if err := client.Match(maker().ApiName(), vals, &objs); err != nil {
-				log.Fatalf("Error getting matches for %v\nError:%v\n", singularName, err.Error())
+			if err := session.Match(maker().ApiName(), vals, &objs); err != nil {
+				log.Fatalf("Error getting matches for %v\nError:%v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(objs))
 		},
@@ -113,8 +120,8 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v requires 1 argument\n", c.UseLine())
 			}
 			obj := maker()
-			if client.Fetch(obj, args[0]) != nil {
-				log.Fatalf("Failed to fetch %v\n", singularName, args[0])
+			if err := session.Fetch(obj, args[0]); err != nil {
+				log.Fatalf("Failed to fetch %v: %v\n%v\n", singularName, args[0], err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -127,8 +134,8 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v takes no arguments", c.UseLine())
 			}
 			obj := maker()
-			if err := client.Init(obj); err != nil {
-				log.Fatalf("Unable to fetch defaults for %v: %v\n", singularName, err.Error())
+			if err := session.Init(obj); err != nil {
+				log.Fatalf("Unable to fetch defaults for %v: %v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -141,8 +148,8 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v requires 1 argument\n", c.UseLine())
 			}
 			obj := maker()
-			if err := client.Import(obj, []byte(args[0])); err != nil {
-				log.Fatalf("Unable to create new %v: %v\n", singularName, err.Error())
+			if err := session.Import(obj, []byte(args[0])); err != nil {
+				log.Fatalf("Unable to create new %v: %v\n", singularName, err)
 			}
 			fmt.Println(prettyJSON(obj))
 		},
@@ -155,10 +162,10 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v requires 2 arguments\n", c.UseLine())
 			}
 			obj := maker()
-			if err := client.Fetch(obj, args[0]); err != nil {
+			if err := session.Fetch(obj, args[0]); err != nil {
 				log.Fatalf("Failed to fetch %v\n%v\n", singularName, err)
 			}
-			if err := client.UpdateJSON(obj, []byte(args[1])); err != nil {
+			if err := session.UpdateJSON(obj, []byte(args[1])); err != nil {
 				log.Fatalf("Unable to patch %v\n%v\n", args[0], err)
 			}
 
@@ -174,12 +181,12 @@ func makeCommandTree(singularName string,
 			}
 			obj := maker()
 			if err := json.Unmarshal([]byte(args[0]), obj); err != nil {
-				log.Fatalf("Unable to parse %v JSON %v\nError: %v\n", args[0], err)
+				log.Fatalf("Unable to parse %v JSON %v\nError: %v\n", c.UseLine(), args[0], err)
 			}
 			newObj := maker()
 			json.Unmarshal([]byte(args[0]), newObj)
 			if err := json.Unmarshal([]byte(args[1]), newObj); err != nil {
-				log.Fatalf("Unable to parse %v JSON %v\nError: %v\n", args[1], err)
+				log.Fatalf("Unable to parse %v JSON %v\nError: %v\n", c.UseLine(), args[1], err)
 			}
 			newBuf, _ := json.Marshal(newObj)
 			patch, err := jsonpatch.GenerateJSON([]byte(args[0]), newBuf, true)
@@ -187,7 +194,7 @@ func makeCommandTree(singularName string,
 				log.Fatalf("Cannot generate JSON Patch\n%v\n", err)
 			}
 
-			if err := client.Patch(obj, patch); err != nil {
+			if err := session.Patch(obj, patch); err != nil {
 				log.Fatalf("Unable to patch %v\n%v\n", args[0], err)
 			}
 
@@ -202,11 +209,11 @@ func makeCommandTree(singularName string,
 				log.Fatalf("%v requires 1 argument\n", c.UseLine())
 			}
 			obj := maker()
-			if client.SetId(obj, args[0]) != nil {
+			if session.SetId(obj, args[0]) != nil {
 				log.Fatalf("Failed to parse ID %v for an %v\n", args[0], singularName)
 			}
-			if err := client.Destroy(obj); err != nil {
-				log.Fatalf("Unable to destroy %v %v\nError: %v\n", singularName, args[0], err.Error())
+			if err := session.Destroy(obj); err != nil {
+				log.Fatalf("Unable to destroy %v %v\nError: %v\n", singularName, args[0], err)
 			}
 			fmt.Printf("Deleted %v %v\n", singularName, args[0])
 		},
@@ -229,33 +236,60 @@ func makeCommandTree(singularName string,
 
 func main() {
 	app.PersistentPreRun = func(c *cobra.Command, a []string) {
-		d("Talking to Crowbar with %v (%v:%v)", endpoint, username, password)
-		if err := client.Session(endpoint, username, password); err != nil {
-			log.Fatalf("Could not connect to Crowbar: %v\n", err.Error())
+		var err error
+		if trusted {
+			session, err = api.TrustedSession(endpoint, username)
+		} else {
+			d("Talking to Rebar with %v (%v:%v)", endpoint, username, password)
+			session, err = api.Session(endpoint, username, password)
 		}
+		if err != nil {
+			if c.Use != "version" {
+				log.Fatalf("Could not connect to Rebar: %v\n", err.Error())
+			}
+		}
+	}
+	vers := &cobra.Command{
+		Use:   "version",
+		Short: "Rebar CLI Command Version",
+		Run: func(cmd *cobra.Command, args []string) {
+			log.Printf("Version: %v", version)
+		},
 	}
 
 	ping := &cobra.Command{
 		Use:   "ping",
-		Short: "Test to see if we can connect to the Crowbar API endpoint",
+		Short: "Test to see if we can connect to the Rebar API endpoint",
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Printf("Able to connect to Crowbar at %v (user: %v)", endpoint, username)
+			log.Printf("Able to connect to Rebar at %v (user: %v)", endpoint, username)
 		},
 	}
 
 	converge := &cobra.Command{
-		Use:   "converge",
-		Short: "Wait for all the noderoles to become active, and fail if any error out",
+		Use:   "converge [deployment]",
+		Short: "Wait for all the noderoles to become active (optionally by deployment), and fail if any error out",
 		Run: func(c *cobra.Command, args []string) {
+			var deploymentID int64
+			if len(args) == 1 {
+				obj := &api.Deployment{}
+				if session.Fetch(obj, args[0]) != nil {
+					log.Fatalf("Failed to fetch %v\n", args[0])
+				}
+				deploymentID = obj.ID
+			}
+
 			for {
-				nodeRoles, err := client.NodeRoles()
+				nodeRoles, err := session.NodeRoles()
 				if err != nil {
 					log.Fatalln("Could not fetch noderoles!", err)
 				}
 				allActive := true
 				for _, nodeRole := range nodeRoles {
+					if nodeRole.DeploymentID != deploymentID {
+						continue
+					}
 					if nodeRole.State == datatypes.NodeRoleError {
-						log.Fatalln("Crowbar could not converge")
+						log.Fatalln("Rebar could not converge")
 					}
 					if nodeRole.State != datatypes.NodeRoleActive {
 						allActive = false
@@ -270,6 +304,7 @@ func main() {
 	}
 	app.AddCommand(converge)
 	app.AddCommand(ping)
+	app.AddCommand(vers)
 
 	app.Execute()
 }

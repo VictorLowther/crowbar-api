@@ -1,5 +1,7 @@
 package client
 
+// Deprecated: use api instead. client will not be updated
+
 // Apache 2 License 2015 by Rob Hirschfeld for RackN
 
 import (
@@ -262,7 +264,11 @@ func UpdateJSON(o Crudder, toMerge []byte) error {
 
 func updatePaths(p string, val interface{}) {
 	v := reflect.ValueOf(val)
+	for v.Kind() == reflect.Ptr {
+		v = reflect.Indirect(v)
+	}
 	if v.Kind() != reflect.Slice {
+		log.Panic("val must be a Slice")
 		return
 	}
 	for i := 0; i < v.Len(); i++ {

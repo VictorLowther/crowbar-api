@@ -1,6 +1,8 @@
 package client
 
-import "github.com/VictorLowther/crowbar-api/datatypes"
+// Deprecated: use api instead. client will not be updated
+
+import "github.com/digitalrebar/rebar-api/datatypes"
 
 // Barclamp wraps datatypes.Barclamp to provide client API
 // functionality

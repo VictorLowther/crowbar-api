@@ -9,14 +9,14 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/VictorLowther/crowbar-api/client"
-	"github.com/VictorLowther/crowbar-api/datatypes"
 	"github.com/VictorLowther/yaml"
+	"github.com/digitalrebar/rebar-api/api"
+	"github.com/digitalrebar/rebar-api/datatypes"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	maker := func() client.Crudder { return &client.Barclamp{} }
+	maker := func() api.Crudder { return &api.Barclamp{} }
 	singularName := "barclamp"
 	barclamps := makeCommandTree(singularName, maker)
 	barclamps.AddCommand(&cobra.Command{
@@ -33,7 +33,7 @@ func init() {
 					log.Fatalf("Error probing %v\n%v\n", toLoad, err)
 				}
 				if info.IsDir() {
-					toLoad = path.Join(toLoad, "crowbar.yml")
+					toLoad = path.Join(toLoad, "rebar.yml")
 					continue
 				}
 				if !info.Mode().IsRegular() {
@@ -43,8 +43,8 @@ func init() {
 			}
 
 			dir, f := path.Split(toLoad)
-			if f != "crowbar.yml" {
-				log.Fatalf("%v is not the location of a crowbar.yml file!", args[0])
+			if f != "rebar.yml" {
+				log.Fatalf("%v is not the location of a rebar.yml file!", args[0])
 			}
 
 			loadPaths := []string{toLoad}
@@ -54,7 +54,7 @@ func init() {
 				log.Fatal(err)
 			}
 			loadPaths = append(loadPaths, subBarclamps...)
-			res := make([]*client.Barclamp, len(loadPaths))
+			res := make([]*api.Barclamp, len(loadPaths))
 
 			for i, toLoad := range loadPaths {
 				f, err := os.Open(toLoad)
@@ -81,8 +81,8 @@ func init() {
 				if err != nil {
 					log.Fatalf("Error marshalling %v to JSON: %v", toLoad, err)
 				}
-				bc := &client.Barclamp{}
-				if err := client.Import(bc, jsonBuf); err != nil {
+				bc := &api.Barclamp{}
+				if err := session.Import(bc, jsonBuf); err != nil {
 					log.Fatalf("Error importing %v: %v", toLoad, err)
 				}
 				res[i] = bc

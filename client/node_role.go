@@ -1,9 +1,11 @@
 package client
 
+// Deprecated: use api instead. client will not be updated
+
 import (
 	"path"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 )
 
 type NodeRole struct {
@@ -27,4 +29,14 @@ func NodeRoles(scope ...NodeRoler) (res []*NodeRole, err error) {
 	paths = append(paths, "node_roles")
 	res = make([]*NodeRole, 0)
 	return res, List(path.Join(paths...), &res)
+}
+
+// Force the noderole to retry
+func (o *NodeRole) Retry() error {
+	uri := urlFor(o, "retry")
+	buf, err := session.request("PUT", uri, nil)
+	if err != nil {
+		return err
+	}
+	return unmarshal(uri, buf, o)
 }

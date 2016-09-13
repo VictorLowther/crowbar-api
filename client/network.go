@@ -1,12 +1,14 @@
 package client
 
+// Deprecated: use api instead. client will not be updated
+
 import (
 	"errors"
 	"fmt"
 	"net/url"
 	"path"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 )
 
 // Network wraps datatypes.Network to provide client API functionality
@@ -16,7 +18,7 @@ type Network struct {
 	apiHelper
 }
 
-// Role gets the Crowbar Role that is responsible for configuring the
+// Role gets the Rebar Role that is responsible for configuring the
 // Network on a given Node.
 func (o *Network) Role() (role *Role, err error) {
 	role = &Role{}

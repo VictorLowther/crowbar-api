@@ -1,5 +1,7 @@
 package client
 
+// Deprecated: use api instead. client will not be updated
+
 import (
 	"crypto/rand"
 	"encoding/base64"
@@ -7,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -90,4 +92,14 @@ func (u *User) CompletePasswordReset(tok *PasswordChangeToken, newPassword strin
 		return err
 	}
 	return nil
+}
+
+// Capabilities fetches the capability map for this user.
+func (u *User) Capabilities() (*map[string]interface{}, error) {
+	buf, err := session.request("GET", urlFor(u, "capabilities"), nil)
+	if err != nil {
+		return nil, err
+	}
+	res := &map[string]interface{}{}
+	return res, json.Unmarshal(buf, res)
 }

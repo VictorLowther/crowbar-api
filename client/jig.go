@@ -1,9 +1,11 @@
 package client
 
+// Deprecated: use api instead. client will not be updated
+
 import (
 	"path"
 
-	"github.com/VictorLowther/crowbar-api/datatypes"
+	"github.com/digitalrebar/rebar-api/datatypes"
 )
 
 // Jig wraps datatypes.Jig to provide client API functionality
